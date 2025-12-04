@@ -87,7 +87,7 @@ function Neuron({ position, activation, isActive }) {
 }
 
 // Connection line between neurons
-function Connection({ start, end, weight, opacity = 0.6 }) {
+function Connection({ start, end, weight, opacity = 0.6, lineThickness = 1 }) {
   const points = useMemo(() => {
     return [new THREE.Vector3(...start), new THREE.Vector3(...end)];
   }, [start, end]);
@@ -98,7 +98,7 @@ function Connection({ start, end, weight, opacity = 0.6 }) {
   }, [points]);
 
   const color = getWeightColor(weight);
-  const lineWidth = Math.min(Math.abs(weight) * 3, 2);
+  const lineWidth = Math.min(Math.abs(weight) * 3 * lineThickness, 2 * lineThickness);
 
   return (
     <line geometry={lineGeometry}>
@@ -168,7 +168,7 @@ function NeuronLayer({ neurons, activations, position, label, layerIndex }) {
 }
 
 // Network connections between two layers
-function LayerConnections({ sourcePositions, targetPositions, connections }) {
+function LayerConnections({ sourcePositions, targetPositions, connections, lineThickness }) {
   if (!connections || connections.length === 0) return null;
 
   return (
@@ -180,6 +180,7 @@ function LayerConnections({ sourcePositions, targetPositions, connections }) {
           end={targetPositions[conn.target]}
           weight={conn.weight}
           opacity={0.3}
+          lineThickness={lineThickness}
         />
       ))}
     </group>
@@ -187,7 +188,7 @@ function LayerConnections({ sourcePositions, targetPositions, connections }) {
 }
 
 // Main network visualization
-function NetworkScene({ networkState, weights }) {
+function NetworkScene({ networkState, weights, maxConnections, weakThreshold, lineThickness }) {
   const layerConfigs = useMemo(() => {
     return [
       { neurons: 784, position: [-8, 0, 0], label: 'Input (784)', layerIndex: 0 },
@@ -238,12 +239,17 @@ function NetworkScene({ networkState, weights }) {
     const hasData = networkState.input && networkState.input.some(v => v > 0);
     if (!hasData) return [[], [], []];
 
+    // Get connections and filter by weak threshold
+    const filterConnections = (conns) => {
+      return conns.filter(conn => Math.abs(conn.weight) >= weakThreshold);
+    };
+
     return [
-      getTopConnections(weights.layer1.weights, activations[0], activations[1], 3),
-      getTopConnections(weights.layer2.weights, activations[1], activations[2], 5),
-      getTopConnections(weights.output.weights, activations[2], activations[3], 8)
+      filterConnections(getTopConnections(weights.layer1.weights, activations[0], activations[1], maxConnections)),
+      filterConnections(getTopConnections(weights.layer2.weights, activations[1], activations[2], maxConnections)),
+      filterConnections(getTopConnections(weights.output.weights, activations[2], activations[3], maxConnections))
     ];
-  }, [networkState, weights, activations]);
+  }, [networkState, weights, activations, maxConnections, weakThreshold]);
 
   return (
     <>
@@ -256,16 +262,19 @@ function NetworkScene({ networkState, weights }) {
         sourcePositions={neuronPositions[0]}
         targetPositions={neuronPositions[1]}
         connections={connections[0]}
+        lineThickness={lineThickness}
       />
       <LayerConnections
         sourcePositions={neuronPositions[1]}
         targetPositions={neuronPositions[2]}
         connections={connections[1]}
+        lineThickness={lineThickness}
       />
       <LayerConnections
         sourcePositions={neuronPositions[2]}
         targetPositions={neuronPositions[3]}
         connections={connections[2]}
+        lineThickness={lineThickness}
       />
 
       {/* Render neuron layers */}
@@ -292,14 +301,28 @@ function NetworkScene({ networkState, weights }) {
 }
 
 // Main component export
-export default function NetworkVisualization3D({ networkState, weights }) {
+export default function NetworkVisualization3D({
+  networkState,
+  weights,
+  maxConnections = 8,
+  weakThreshold = 0,
+  lineThickness = 1
+}) {
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
       <Canvas
         camera={{ position: [0, 0, 15], fov: 50 }}
         style={{ background: '#0a0a0a' }}
+        gl={{ antialias: true }}
+        dpr={window.devicePixelRatio}
       >
-        <NetworkScene networkState={networkState} weights={weights} />
+        <NetworkScene
+          networkState={networkState}
+          weights={weights}
+          maxConnections={maxConnections}
+          weakThreshold={weakThreshold}
+          lineThickness={lineThickness}
+        />
       </Canvas>
 
       {/* Legend */}
@@ -307,24 +330,26 @@ export default function NetworkVisualization3D({ networkState, weights }) {
         position: 'absolute',
         bottom: '20px',
         left: '20px',
-        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+        backgroundColor: 'rgba(0, 0, 0, 0.85)',
         padding: '15px',
-        borderRadius: '8px',
+        borderRadius: '12px',
         border: '1px solid #444',
         fontSize: '12px',
-        color: '#ccc'
+        color: '#ccc',
+        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.5)'
       }}>
-        <div style={{ fontWeight: 'bold', marginBottom: '8px', color: '#fff' }}>Controls</div>
+        <div style={{ fontWeight: 'bold', marginBottom: '8px', color: '#fff', fontSize: '13px' }}>Controls</div>
         <div>🖱️ Left drag: Rotate</div>
         <div>🖱️ Right drag: Pan</div>
         <div>🖱️ Scroll: Zoom</div>
-        <div style={{ marginTop: '10px', fontWeight: 'bold', color: '#fff' }}>Colors</div>
+        <div style={{ marginTop: '6px', fontSize: '11px', color: '#999' }}>📱 Touch: Drag to rotate, pinch to zoom</div>
+        <div style={{ marginTop: '10px', fontWeight: 'bold', color: '#fff', fontSize: '13px' }}>Colors</div>
         <div style={{ display: 'flex', gap: '5px', alignItems: 'center', marginTop: '5px' }}>
-          <div style={{ width: '20px', height: '12px', background: 'linear-gradient(to right, #1e3a8a, #3b82f6, #06b6d4)' }}></div>
+          <div style={{ width: '20px', height: '12px', background: 'linear-gradient(to right, #1e3a8a, #3b82f6, #06b6d4)', borderRadius: '2px' }}></div>
           <span>Low activation</span>
         </div>
         <div style={{ display: 'flex', gap: '5px', alignItems: 'center', marginTop: '3px' }}>
-          <div style={{ width: '20px', height: '12px', background: 'linear-gradient(to right, #eab308, #f97316, #ef4444)' }}></div>
+          <div style={{ width: '20px', height: '12px', background: 'linear-gradient(to right, #eab308, #f97316, #ef4444)', borderRadius: '2px' }}></div>
           <span>High activation</span>
         </div>
       </div>

@@ -3,9 +3,8 @@ import React, { useRef, useEffect, useState } from 'react';
 const CANVAS_SIZE = 280; // 28 pixels * 10 scale
 const GRID_SIZE = 28;
 const PIXEL_SIZE = CANVAS_SIZE / GRID_SIZE;
-const BRUSH_SIZE = 2; // Number of pixels the brush affects
 
-export default function DrawingCanvas({ onDrawingChange, clearTrigger }) {
+export default function DrawingCanvas({ onDrawingChange, clearTrigger, brushSize = 2 }) {
   const canvasRef = useRef(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [pixelData, setPixelData] = useState(() =>
@@ -84,15 +83,15 @@ export default function DrawingCanvas({ onDrawingChange, clearTrigger }) {
       const newData = prevData.map(row => [...row]);
 
       // Draw with brush size (creates smoother, thicker lines)
-      for (let dy = -BRUSH_SIZE; dy <= BRUSH_SIZE; dy++) {
-        for (let dx = -BRUSH_SIZE; dx <= BRUSH_SIZE; dx++) {
+      for (let dy = -brushSize; dy <= brushSize; dy++) {
+        for (let dx = -brushSize; dx <= brushSize; dx++) {
           const nx = x + dx;
           const ny = y + dy;
 
           if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE) {
             // Distance from center for smooth falloff
             const distance = Math.sqrt(dx * dx + dy * dy);
-            const intensity = Math.max(0, 255 * (1 - distance / (BRUSH_SIZE + 1)));
+            const intensity = Math.max(0, 255 * (1 - distance / (brushSize + 1)));
 
             // Add to existing value (blend)
             newData[ny][nx] = Math.min(255, newData[ny][nx] + intensity * 0.8);
@@ -124,6 +123,14 @@ export default function DrawingCanvas({ onDrawingChange, clearTrigger }) {
     setIsDrawing(false);
   };
 
+  const handleContextMenu = (e) => {
+    e.preventDefault(); // Prevent default right-click menu
+    // Clear the canvas
+    const newData = Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill(0));
+    setPixelData(newData);
+    drawCanvas(newData);
+  };
+
   return (
     <div style={{
       display: 'flex',
@@ -139,6 +146,7 @@ export default function DrawingCanvas({ onDrawingChange, clearTrigger }) {
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseLeave}
+        onContextMenu={handleContextMenu}
         style={{
           border: '2px solid #444',
           borderRadius: '8px',
@@ -152,7 +160,7 @@ export default function DrawingCanvas({ onDrawingChange, clearTrigger }) {
         color: '#aaa',
         textAlign: 'center'
       }}>
-        Click and drag to draw a digit (0-9)
+        Click and drag to draw • Right-click to clear
       </div>
     </div>
   );

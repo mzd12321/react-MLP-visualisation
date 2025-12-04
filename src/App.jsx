@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import DrawingCanvas from './DrawingCanvas';
 import ProbabilityChart from './ProbabilityChart';
 import NetworkVisualization3D from './NetworkVisualization3D';
+import AdvancedControls from './AdvancedControls';
 import { initializeWeights, forwardPass } from './neuralNetwork';
 
 function App() {
@@ -9,6 +10,12 @@ function App() {
   const [networkState, setNetworkState] = useState(null);
   const [clearTrigger, setClearTrigger] = useState(0);
   const debounceTimer = useRef(null);
+
+  // Advanced control settings
+  const [maxConnections, setMaxConnections] = useState(8);
+  const [weakThreshold, setWeakThreshold] = useState(0);
+  const [lineThickness, setLineThickness] = useState(1);
+  const [brushSize, setBrushSize] = useState(2);
 
   // Handle drawing changes with debouncing
   const handleDrawingChange = useCallback((pixelData) => {
@@ -123,6 +130,7 @@ function App() {
           <DrawingCanvas
             onDrawingChange={handleDrawingChange}
             clearTrigger={clearTrigger}
+            brushSize={brushSize}
           />
           <button
             onClick={handleClear}
@@ -236,6 +244,9 @@ function App() {
           <NetworkVisualization3D
             networkState={networkState}
             weights={weights}
+            maxConnections={maxConnections}
+            weakThreshold={weakThreshold}
+            lineThickness={lineThickness}
           />
         </div>
       </div>
@@ -245,14 +256,14 @@ function App() {
         position: 'absolute',
         top: '100px',
         right: '20px',
-        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        backgroundColor: 'rgba(0, 0, 0, 0.85)',
         padding: '15px',
-        borderRadius: '8px',
+        borderRadius: '12px',
         border: '1px solid #444',
         maxWidth: '250px',
         fontSize: '12px',
         color: '#ccc',
-        boxShadow: '0 4px 6px rgba(0, 0, 0, 0.3)'
+        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.5)'
       }}>
         <div style={{ fontWeight: 'bold', marginBottom: '10px', color: '#fff', fontSize: '14px' }}>
           ℹ️ How to Use
@@ -268,6 +279,18 @@ function App() {
           <strong>Note:</strong> This uses simulated pre-trained weights for demonstration purposes.
         </div>
       </div>
+
+      {/* Advanced Controls */}
+      <AdvancedControls
+        maxConnections={maxConnections}
+        onMaxConnectionsChange={setMaxConnections}
+        weakThreshold={weakThreshold}
+        onWeakThresholdChange={setWeakThreshold}
+        lineThickness={lineThickness}
+        onLineThicknessChange={setLineThickness}
+        brushSize={brushSize}
+        onBrushSizeChange={setBrushSize}
+      />
     </div>
   );
 }
